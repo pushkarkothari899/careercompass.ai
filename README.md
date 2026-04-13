@@ -1,5 +1,5 @@
 
-# CareerPath AI — Complete Setup Guide
+# Careercompass AI — Complete Setup Guide
 
 ## Project Structure
 
