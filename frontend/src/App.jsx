@@ -657,6 +657,10 @@ function Dashboard({ onLogout }) {
   const name       = user?.name || "User";
   const latestEval = dashData?.latest_evaluation;
   const evaluations = dashData?.evaluation_history || [];
+
+  const resumeEvaluations = evaluations.filter(
+  (ev) => ev.skill_score >= 80
+  );
   const skillLevel = latestEval?.skill_level || "—";
   const skillScore = latestEval?.skill_score ?? "—";
   const profileCompletion = dashData?.profile_completion || 0;
@@ -715,7 +719,7 @@ function Dashboard({ onLogout }) {
           <div className="page-fade">
             <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Welcome back, {name}! 👋</h2>
             <p style={{ color: "#888", marginBottom: 28, fontSize: 15 }}>Here's your career development overview</p>
-
+          {profileCompletion < 100 && (
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div><p style={{ fontWeight: 700, fontSize: 16 }}>Profile Completion</p><p style={{ fontSize: 13, color: "#888", marginTop: 4 }}>{profileCompletion < 100 ? "Keep adding info to improve your evaluation" : "Your profile is complete!"}</p></div>
@@ -723,12 +727,17 @@ function Dashboard({ onLogout }) {
               </div>
               <div className="progress-bar"><div className="progress-fill" style={{ width: `${profileCompletion}%` }} /></div>
             </div>
+          )}
 
             <div style={{ display: "flex", gap: 16, marginBottom: 18 }}>
               {[
                 { icon: "🎯", label: "Total Evaluations", value: String(evaluations.length), color: "#eef2ff" },
-                { icon: "📈", label: "Current Skill Score", value: skillScore !== "—" ? `${skillScore}/100` : "—", color: "#f0fdf4" },
-                { icon: "✨", label: "Skill Level", value: skillLevel, color: "#fdf4ff" },
+                {  icon: "📄",
+                label: "Resume Score",
+                value: resumeEvaluations.length
+                  ? `${resumeEvaluations[resumeEvaluations.length - 1].skill_score}/100`
+                  : "N/A",
+                color: "#f0fdf4"}
               ].map(stat => (
                 <div key={stat.label} className="stat-card">
                   <div style={{ width: 40, height: 40, background: stat.color, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 12 }}>{stat.icon}</div>
@@ -737,46 +746,56 @@ function Dashboard({ onLogout }) {
                 </div>
               ))}
             </div>
+           {evaluations.filter(ev => ev.skill_score >= 50).length > 0 && (
+  <div className="card">
+    <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>
+      📅 Resume Analysis History
+    </p>
 
-            {latestEval ? (
-              <div className="card">
-                <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 18 }}>📈 Latest Evaluation</p>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <p style={{ fontSize: 36, fontWeight: 800, color: "#6366f1" }}>{latestEval.skill_score} <span style={{ fontSize: 16, fontWeight: 500, color: "#aaa" }}>/ 100</span></p>
-                    <p style={{ fontSize: 13, color: "#888", marginTop: 6 }}>Evaluated on {new Date(latestEval.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                    <span className="badge" style={{ marginTop: 10 }}>{latestEval.skill_level}</span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>Area of Interest</p>
-                    <p style={{ fontWeight: 700, fontSize: 16 }}>{latestEval.area_of_interest || "—"}</p>
-                    <button className="btn-accent" style={{ marginTop: 14, width: "auto" }} onClick={() => setActiveNav("My Results")}>View Results →</button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="card" style={{ textAlign: "center", padding: "40px 28px" }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
-                <h3 style={{ fontWeight: 800, marginBottom: 8 }}>No evaluations yet</h3>
-                <p style={{ color: "#888", marginBottom: 20 }}>Run your first evaluation to see your skill score and get career recommendations.</p>
-                <button className="btn-accent" style={{ width: "auto", margin: "0 auto" }} onClick={() => setActiveNav("Evaluate Profile")}>Start Evaluation →</button>
-              </div>
-            )}
+    {evaluations
+      .filter(ev => ev.skill_score >= 50)
+      .map((ev, i) => (
+        <div key={i} className="history-row">
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                background: "#eef2ff",
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                color: "#6366f1",
+                fontSize: 15
+              }}
+            >
+              {ev.skill_score}
+            </div>
 
-            {evaluations.length > 0 && (
-              <div className="card">
-                <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>📅 Evaluation History</p>
-                {evaluations.map((ev, i) => (
-                  <div key={i} className="history-row">
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                      <div style={{ width: 44, height: 44, background: "#eef2ff", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#6366f1", fontSize: 15 }}>{ev.skill_score}</div>
-                      <div><p style={{ fontWeight: 600, fontSize: 15 }}>{ev.area_of_interest || "Evaluation"}</p><p style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{new Date(ev.created_at).toLocaleDateString()}</p></div>
-                    </div>
-                    <span className="badge">{ev.skill_level}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div>
+              <p style={{ fontWeight: 600, fontSize: 15 }}>
+                Resume Analysis
+              </p>
+
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#888",
+                  marginTop: 2
+                }}
+              >
+                {new Date(ev.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          <span className="badge">{ev.skill_level}</span>
+        </div>
+      ))}
+  </div>
+)}
 
             <div className="card">
               <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>Quick Actions</p>
@@ -977,10 +996,10 @@ function Dashboard({ onLogout }) {
   );
 }
 
-/* ─── LATEST RESULTS VIEW ────────────────────────────────────── */
+/* ───   RESULTS VIEW ────────────────────────────────────── */
 function LatestResults({ evalId, authFetch }) {
   const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     authFetch(`/api/evaluate/${evalId}`)

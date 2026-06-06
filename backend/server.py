@@ -269,7 +269,7 @@ def call_ai(prompt: str, system: str = "") -> str:
     )
     try:
         print("ABOUT TO CALL OPENROUTER")
-        
+
         with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read().decode())
             print("[OPENROUTER RESPONSE]", result)
@@ -918,6 +918,7 @@ def get_dashboard():
 
         return jsonify({
             "user": user,
+            "profile": profile,
             "profile_completion": completion,
             "total_evaluations": len(evaluations),
             "current_skill_score": latest["skill_score"] if latest else None,
@@ -932,7 +933,7 @@ def get_dashboard():
 
 
 def _calc_profile_completion(profile: dict) -> int:
-    fields = ["qualification", "year_of_study", "skills", "resume_text",
+    fields = ["qualification", "year_of_study","resume_text",
               "area_of_interest", "career_goal"]
     filled = 0
     for f in fields:
