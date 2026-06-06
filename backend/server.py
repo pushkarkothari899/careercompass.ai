@@ -81,6 +81,8 @@ def load_env(path=".env"):
 
 load_env()
 
+print("OPENROUTER_API_KEY =", os.getenv("OPENROUTER_API_KEY"))
+
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 SECRET_KEY = os.environ.get("JWT_SECRET", "careerpath-dev-secret-change-in-prod")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -265,9 +267,24 @@ def call_ai(prompt: str, system: str = "") -> str:
             "X-Title": "CareerPath AI"
         }
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        result = json.loads(resp.read().decode())
-        return result["choices"][0]["message"]["content"]
+    try:
+        print("ABOUT TO CALL OPENROUTER")
+        
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode())
+            print("[OPENROUTER RESPONSE]", result)
+            return result["choices"][0]["message"]["content"]
+
+    except urllib.error.HTTPError as e:
+        print("\n=== OPENROUTER HTTP ERROR ===")
+        print("Status:", e.code)
+        print("Response:", e.read().decode())
+        raise
+
+    except Exception as e:
+        print("\n=== OPENROUTER GENERAL ERROR ===")
+        print(repr(e))
+        raise
 
 # ─── SERPAPI JOB SEARCH ────────────────────────────────────────────────────────
 
@@ -651,18 +668,17 @@ Based on this profile, provide a comprehensive evaluation and recommendations.""
                 cleaned = cleaned[4:]
         result = json.loads(cleaned)
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            # If API credentials are invalid, still provide a deterministic demo-style response.
-            result = _generate_fallback_evaluation(skills, profile)
-        else:
-            return jsonify({"error": f"AI service HTTP error: {e.code}"}), 503
+        print(f"[AI ERROR] HTTP {e.code}: {e.read().decode()}")
+        result = _generate_fallback_evaluation(skills, profile)
     except urllib.error.URLError as e:
+        print(f"[AI ERROR] URL: {str(e)}")
         return jsonify({"error": f"AI service unavailable: {str(e)}"}), 503
-    except json.JSONDecodeError:
-        # Fallback: return a simulated response if AI parsing fails
+    except json.JSONDecodeError as e:
+        print(f"[AI ERROR] JSON parse failed: {ai_response}")
         result = _generate_fallback_evaluation(skills, profile)
     except Exception as e:
-        return jsonify({"error": f"Evaluation failed: {str(e)}"}), 500
+        print(f"[AI ERROR] General: {str(e)}")
+        return jsonify({"error": f"Resume evaluation failed: {str(e)}"}), 500
 
     # Save evaluation to DB
     conn = get_db()

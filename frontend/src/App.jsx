@@ -514,7 +514,7 @@ function ResumePage({ onComplete, onSkip }) {
               <div className={`drop-zone ${dragging ? "drag-over" : ""}`} onClick={() => inputRef.current.click()}
                 onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
                 onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}>
-                <input ref={inputRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+                <input ref={inputRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; if (f) handleFile(f); }} />
                 {file ? (
                   <div><div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
                     <p style={{ fontWeight: 700, color: "#4f46e5", fontSize: 15 }}>{file.name}</p>
@@ -611,9 +611,7 @@ function Dashboard({ onLogout }) {
     if (!evalArea) { showToast("Please select an area of interest!", "error"); return; }
     setEvalLoading(true); setEvalResult(null);
     try {
-      // First save the area of interest
       await authFetch("/api/profile", { method: "PUT", body: JSON.stringify({ area_of_interest: evalArea }) });
-      // Then run evaluation
       const res  = await authFetch("/api/evaluate", { method: "POST" });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || "Evaluation failed", "error"); return; }
@@ -634,7 +632,9 @@ function Dashboard({ onLogout }) {
     } catch { showToast("Save failed.", "error"); }
   };
 
+  // ─── FIX: handleResumeUpload with debug log ───────────────────
   const handleResumeUpload = async () => {
+    console.log("▶ handleResumeUpload called, resumeFile:", resumeFile);
     if (!resumeFile) { showToast("Please select a PDF first.", "error"); return; }
     setResumeUploading(true);
     try {
@@ -642,11 +642,15 @@ function Dashboard({ onLogout }) {
       formData.append("resume", resumeFile);
       const res  = await authFetch("/api/resume/upload", { method: "POST", body: formData, headers: {} });
       const data = await res.json();
+      console.log("▶ UPLOAD RESPONSE:", JSON.stringify(data));
       if (!res.ok) { showToast(data.error || "Upload failed", "error"); return; }
       setResumeResult(data.evaluation);
       showToast("Resume analyzed!");
       loadDashboard();
-    } catch { showToast("Upload failed.", "error"); }
+    } catch (err) {
+      console.error("▶ Upload error:", err);
+      showToast("Upload failed.", "error");
+    }
     finally { setResumeUploading(false); }
   };
 
@@ -831,9 +835,25 @@ function Dashboard({ onLogout }) {
               {!resumeResult ? (
                 <>
                   <div style={{ marginBottom: 24 }}>
-                    <div className={`drop-zone`} onClick={() => resumeInputRef.current.click()}
-                      onDragOver={e => { e.preventDefault(); }} onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type === "application/pdf") setResumeFile(f); }}>
-                      <input ref={resumeInputRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={e => setResumeFile(e.target.files[0])} />
+                    <div className="drop-zone" onClick={() => resumeInputRef.current.click()}
+                      onDragOver={e => { e.preventDefault(); }}
+                      onDrop={e => {
+                        e.preventDefault();
+                        const f = e.dataTransfer.files[0];
+                        // ─── FIX: guard undefined from drag-drop ───
+                        if (f && f.type === "application/pdf") setResumeFile(f);
+                      }}>
+                      {/* ─── FIX: guard undefined from file picker cancel ─── */}
+                      <input
+                        ref={resumeInputRef}
+                        type="file"
+                        accept=".pdf"
+                        style={{ display: "none" }}
+                        onChange={e => {
+                          const f = e.target.files[0];
+                          if (f) setResumeFile(f);
+                        }}
+                      />
                       {resumeFile ? (
                         <div><div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
                           <p style={{ fontWeight: 700, color: "#4f46e5", fontSize: 15 }}>{resumeFile.name}</p>
@@ -856,7 +876,9 @@ function Dashboard({ onLogout }) {
                       <style>{`@keyframes grow { from{width:0%} to{width:95%} }`}</style>
                     </div>
                   )}
-                  <button className="btn-primary" style={{ maxWidth: 240 }} onClick={handleResumeUpload} disabled={resumeUploading}>{resumeUploading ? "Analyzing..." : "Analyze Resume →"}</button>
+                  <button className="btn-primary" style={{ maxWidth: 240 }} onClick={handleResumeUpload} disabled={resumeUploading}>
+                    {resumeUploading ? "Analyzing..." : "Analyze Resume →"}
+                  </button>
                 </>
               ) : (
                 <div className="personality-reveal">
@@ -876,7 +898,12 @@ function Dashboard({ onLogout }) {
                     </>
                   )}
                   <div style={{ display: "flex", gap: 12 }}>
-                    <button className="btn-secondary" onClick={() => { setResumeResult(null); setResumeFile(null); }}>Upload Another</button>
+                    {/* ─── FIX: reset input ref so browser doesn't cache old file ─── */}
+                    <button className="btn-secondary" onClick={() => {
+                      setResumeResult(null);
+                      setResumeFile(null);
+                      if (resumeInputRef.current) resumeInputRef.current.value = "";
+                    }}>Upload Another</button>
                     <button className="btn-primary" onClick={() => setActiveNav("My Results")}>View Full Results →</button>
                   </div>
                 </div>
